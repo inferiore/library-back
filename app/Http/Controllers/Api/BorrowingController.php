@@ -12,11 +12,6 @@ use Carbon\Carbon;
 
 class BorrowingController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth:sanctum');
-    }
-
     /**
      * List borrowings
      * 
