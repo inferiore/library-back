@@ -16,6 +16,14 @@ class BookController extends Controller
         $this->middleware('auth:sanctum');
     }
 
+    /**
+     * List all books
+     * 
+     * Retrieve a paginated list of all books. Supports search by title, author, or genre.
+     * 
+     * @group Books
+     * @queryParam search string Search books by title, author, or genre. Example: Laravel
+     */
     public function index(Request $request)
     {
         $query = Book::query();
@@ -39,6 +47,13 @@ class BookController extends Controller
         ]);
     }
 
+    /**
+     * Create a new book
+     * 
+     * Add a new book to the library. Only librarians can perform this action.
+     * 
+     * @group Books
+     */
     public function store(StoreBookRequest $request)
     {
         $book = Book::create([
@@ -56,6 +71,13 @@ class BookController extends Controller
         ], 201);
     }
 
+    /**
+     * Get book details
+     * 
+     * Retrieve detailed information about a specific book.
+     * 
+     * @group Books
+     */
     public function show(Book $book)
     {
         return response()->json([
@@ -64,6 +86,13 @@ class BookController extends Controller
         ]);
     }
 
+    /**
+     * Update book information
+     * 
+     * Update book details. Only librarians can perform this action.
+     * 
+     * @group Books
+     */
     public function update(UpdateBookRequest $request, Book $book)
     {
         $book->update($request->only([
@@ -83,6 +112,14 @@ class BookController extends Controller
         ]);
     }
 
+    /**
+     * Delete a book
+     * 
+     * Remove a book from the library. Only librarians can perform this action.
+     * Books with active borrowings cannot be deleted.
+     * 
+     * @group Books
+     */
     public function destroy(Book $book)
     {
         $this->authorize('delete', $book);

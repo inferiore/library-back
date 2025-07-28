@@ -222,12 +222,40 @@ All API responses follow a consistent format:
 ### Borrowings Table
 - `id`, `user_id`, `book_id`, `borrowed_at`, `due_at`, `returned_at`
 
+## API Documentation
+
+The API is documented using **Scramble**, which automatically generates OpenAPI documentation from your Laravel code.
+
+### Access Documentation
+Once the server is running, visit: `http://localhost:8000/docs/api`
+
+### Features
+- Interactive API documentation with "Try It" functionality
+- Automatic schema generation from Laravel Request classes and Resources
+- Authentication support for testing endpoints directly in the browser
+
+## Postman Collection
+
+Import the provided Postman collection to test the API:
+1. Import `Library-Management-API.postman_collection.json` into Postman
+2. The collection includes:
+   - All API endpoints organized by functionality
+   - Pre-configured authentication
+   - Example requests with proper data
+   - Automatic token management
+
 ## Testing
 
 Run the test suite:
 ```bash
 php artisan test
 ```
+
+The test suite includes:
+- Authentication tests (registration, login, logout)
+- Book management tests (CRUD operations, authorization)
+- Feature tests for all major functionality
+- Database factories for test data generation
 
 ## Contributing
 

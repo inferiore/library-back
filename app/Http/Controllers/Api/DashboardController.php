@@ -16,6 +16,14 @@ class DashboardController extends Controller
         $this->middleware('auth:sanctum');
     }
 
+    /**
+     * Get dashboard data
+     * 
+     * Retrieve role-specific dashboard information. Librarians see system overview,
+     * members see their borrowing information.
+     * 
+     * @group Dashboard
+     */
     public function index(Request $request)
     {
         $user = $request->user();

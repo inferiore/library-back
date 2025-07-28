@@ -17,6 +17,14 @@ class BorrowingController extends Controller
         $this->middleware('auth:sanctum');
     }
 
+    /**
+     * List borrowings
+     * 
+     * Retrieve borrowing records. Members see only their own borrowings,
+     * librarians see all borrowings.
+     * 
+     * @group Borrowings
+     */
     public function index(Request $request)
     {
         $query = Borrowing::with(['user', 'book']);
@@ -40,6 +48,14 @@ class BorrowingController extends Controller
         ]);
     }
 
+    /**
+     * Borrow a book
+     * 
+     * Create a new borrowing record. Only members can borrow books.
+     * Books must be available and users cannot borrow the same book multiple times.
+     * 
+     * @group Borrowings
+     */
     public function store(BorrowBookRequest $request)
     {
         $user = $request->user();
@@ -85,6 +101,13 @@ class BorrowingController extends Controller
         ], 201);
     }
 
+    /**
+     * Get borrowing details
+     * 
+     * Retrieve details of a specific borrowing record. Members can only see their own borrowings.
+     * 
+     * @group Borrowings
+     */
     public function show(Borrowing $borrowing)
     {
         $user = request()->user();
@@ -103,6 +126,13 @@ class BorrowingController extends Controller
         ]);
     }
 
+    /**
+     * Return a book
+     * 
+     * Mark a borrowing record as returned. Only librarians can perform this action.
+     * 
+     * @group Borrowings
+     */
     public function returnBook(Request $request, Borrowing $borrowing)
     {
         if (!$request->user()->isLibrarian()) {

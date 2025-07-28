@@ -14,6 +14,13 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    /**
+     * Register a new user
+     * 
+     * Creates a new user account with the specified role (librarian or member).
+     * 
+     * @group Authentication
+     */
     public function register(RegisterRequest $request)
     {
         $user = User::create([
@@ -33,6 +40,13 @@ class AuthController extends Controller
         ], 201);
     }
 
+    /**
+     * User login
+     * 
+     * Authenticate a user and return an access token.
+     * 
+     * @group Authentication
+     */
     public function login(LoginRequest $request)
     {
         if (!Auth::attempt($request->only('email', 'password'))) {
@@ -52,6 +66,13 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * User logout
+     * 
+     * Revoke the current access token.
+     * 
+     * @group Authentication
+     */
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
@@ -61,6 +82,13 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * Get current user profile
+     * 
+     * Retrieve the authenticated user's profile information.
+     * 
+     * @group Authentication
+     */
     public function me(Request $request)
     {
         return response()->json([
