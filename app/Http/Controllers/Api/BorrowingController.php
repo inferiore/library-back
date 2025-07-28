@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Borrowing\BorrowBookRequest;
+use App\Http\Resources\BorrowingResource;
 use App\Models\Book;
 use App\Models\Borrowing;
 use Illuminate\Http\Request;
@@ -27,25 +29,21 @@ class BorrowingController extends Controller
 
         return response()->json([
             'message' => 'Borrowings retrieved successfully',
-            'data' => $borrowings,
+            'data' => BorrowingResource::collection($borrowings->items())->additional([
+                'pagination' => [
+                    'current_page' => $borrowings->currentPage(),
+                    'last_page' => $borrowings->lastPage(),
+                    'per_page' => $borrowings->perPage(),
+                    'total' => $borrowings->total(),
+                ]
+            ]),
         ]);
     }
 
-    public function store(Request $request)
+    public function store(BorrowBookRequest $request)
     {
-        $request->validate([
-            'book_id' => 'required|exists:books,id',
-        ]);
-
         $user = $request->user();
         $book = Book::findOrFail($request->book_id);
-
-        // Check if user is member
-        if (!$user->isMember()) {
-            return response()->json([
-                'message' => 'Only members can borrow books',
-            ], 403);
-        }
 
         // Check if book is available
         if (!$book->isAvailable()) {
@@ -83,7 +81,7 @@ class BorrowingController extends Controller
 
         return response()->json([
             'message' => 'Book borrowed successfully',
-            'data' => $borrowing,
+            'data' => new BorrowingResource($borrowing),
         ], 201);
     }
 
@@ -101,7 +99,7 @@ class BorrowingController extends Controller
 
         return response()->json([
             'message' => 'Borrowing retrieved successfully',
-            'data' => $borrowing,
+            'data' => new BorrowingResource($borrowing),
         ]);
     }
 
@@ -130,7 +128,7 @@ class BorrowingController extends Controller
 
         return response()->json([
             'message' => 'Book returned successfully',
-            'data' => $borrowing,
+            'data' => new BorrowingResource($borrowing),
         ]);
     }
 }

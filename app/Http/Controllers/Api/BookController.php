@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Book\StoreBookRequest;
+use App\Http\Requests\Book\UpdateBookRequest;
+use App\Http\Resources\BookResource;
 use App\Models\Book;
 use Illuminate\Http\Request;
 
@@ -25,22 +28,19 @@ class BookController extends Controller
 
         return response()->json([
             'message' => 'Books retrieved successfully',
-            'data' => $books,
+            'data' => BookResource::collection($books->items())->additional([
+                'pagination' => [
+                    'current_page' => $books->currentPage(),
+                    'last_page' => $books->lastPage(),
+                    'per_page' => $books->perPage(),
+                    'total' => $books->total(),
+                ]
+            ]),
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreBookRequest $request)
     {
-        $this->authorize('create', Book::class);
-
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'author' => 'required|string|max:255',
-            'genre' => 'required|string|max:255',
-            'isbn' => 'required|string|unique:books,isbn',
-            'total_copies' => 'required|integer|min:1',
-        ]);
-
         $book = Book::create([
             'title' => $request->title,
             'author' => $request->author,
@@ -52,7 +52,7 @@ class BookController extends Controller
 
         return response()->json([
             'message' => 'Book created successfully',
-            'data' => $book,
+            'data' => new BookResource($book),
         ], 201);
     }
 
@@ -60,22 +60,12 @@ class BookController extends Controller
     {
         return response()->json([
             'message' => 'Book retrieved successfully',
-            'data' => $book,
+            'data' => new BookResource($book),
         ]);
     }
 
-    public function update(Request $request, Book $book)
+    public function update(UpdateBookRequest $request, Book $book)
     {
-        $this->authorize('update', $book);
-
-        $request->validate([
-            'title' => 'sometimes|required|string|max:255',
-            'author' => 'sometimes|required|string|max:255',
-            'genre' => 'sometimes|required|string|max:255',
-            'isbn' => 'sometimes|required|string|unique:books,isbn,' . $book->id,
-            'total_copies' => 'sometimes|required|integer|min:1',
-        ]);
-
         $book->update($request->only([
             'title', 'author', 'genre', 'isbn', 'total_copies'
         ]));
@@ -89,7 +79,7 @@ class BookController extends Controller
 
         return response()->json([
             'message' => 'Book updated successfully',
-            'data' => $book->fresh(),
+            'data' => new BookResource($book->fresh()),
         ]);
     }
 
