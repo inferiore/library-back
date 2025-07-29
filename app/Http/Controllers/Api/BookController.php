@@ -2,133 +2,107 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Business\Services\BookService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Book\StoreBookRequest;
 use App\Http\Requests\Book\UpdateBookRequest;
 use App\Http\Resources\BookResource;
-use App\Models\Book;
 use Illuminate\Http\Request;
 
 class BookController extends Controller
 {
+    protected BookService $bookService;
+
+    public function __construct(BookService $bookService)
+    {
+        $this->bookService = $bookService;
+    }
     /**
      * List all books
-     * 
+     *
      * Retrieve a paginated list of all books. Supports search by title, author, or genre.
-     * 
+     *
      * @group Books
      * @queryParam search string Search books by title, author, or genre. Example: Laravel
      */
     public function index(Request $request)
     {
-        $query = Book::query();
-
-        if ($request->has('search')) {
-            $query->search($request->search);
-        }
-
-        $books = $query->paginate(15);
+        $params = $request->only(['search', 'genre', 'author', 'available_only', 'per_page']);
+        $result = $this->bookService->getBooks($params);
 
         return response()->json([
-            'message' => 'Books retrieved successfully',
-            'data' => BookResource::collection($books->items())->additional([
-                'pagination' => [
-                    'current_page' => $books->currentPage(),
-                    'last_page' => $books->lastPage(),
-                    'per_page' => $books->perPage(),
-                    'total' => $books->total(),
-                ]
+            'message' => $result['message'],
+            'data' => BookResource::collection($result['data']['books'])->additional([
+                'pagination' => $result['data']['pagination'],
             ]),
         ]);
     }
 
     /**
      * Create a new book
-     * 
+     *
      * Add a new book to the library. Only librarians can perform this action.
-     * 
+     *
      * @group Books
      */
     public function store(StoreBookRequest $request)
     {
-        $book = Book::create([
-            'title' => $request->title,
-            'author' => $request->author,
-            'genre' => $request->genre,
-            'isbn' => $request->isbn,
-            'total_copies' => $request->total_copies,
-            'available_copies' => $request->total_copies,
-        ]);
+        $result = $this->bookService->createBook($request->validated());
 
         return response()->json([
-            'message' => 'Book created successfully',
-            'data' => new BookResource($book),
+            'message' => $result['message'],
+            'data' => new BookResource($result['data']['book']),
         ], 201);
     }
 
     /**
      * Get book details
-     * 
+     *
      * Retrieve detailed information about a specific book.
-     * 
+     *
      * @group Books
      */
-    public function show(Book $book)
+    public function show($id)
     {
+        $result = $this->bookService->getBook($id);
+
         return response()->json([
-            'message' => 'Book retrieved successfully',
-            'data' => new BookResource($book),
+            'message' => $result['message'],
+            'data' => new BookResource($result['data']['book']),
         ]);
     }
 
     /**
      * Update book information
-     * 
+     *
      * Update book details. Only librarians can perform this action.
-     * 
+     *
      * @group Books
      */
-    public function update(UpdateBookRequest $request, Book $book)
+    public function update(UpdateBookRequest $request, $id)
     {
-        $book->update($request->only([
-            'title', 'author', 'genre', 'isbn', 'total_copies'
-        ]));
-
-        // Adjust available copies if total copies changed
-        if ($request->has('total_copies')) {
-            $borrowedCopies = $book->borrowings()->active()->count();
-            $book->available_copies = max(0, $request->total_copies - $borrowedCopies);
-            $book->save();
-        }
+        $result = $this->bookService->updateBook($id, $request->validated());
 
         return response()->json([
-            'message' => 'Book updated successfully',
-            'data' => new BookResource($book->fresh()),
+            'message' => $result['message'],
+            'data' => new BookResource($result['data']['book']),
         ]);
     }
 
     /**
      * Delete a book
-     * 
+     *
      * Remove a book from the library. Only librarians can perform this action.
      * Books with active borrowings cannot be deleted.
-     * 
+     *
      * @group Books
      */
-    public function destroy(Book $book)
+    public function destroy($id)
     {
-        $this->authorize('delete', $book);
-
-        if ($book->borrowings()->active()->exists()) {
-            return response()->json([
-                'message' => 'Cannot delete book with active borrowings',
-            ], 422);
-        }
-
-        $book->delete();
+        $result = $this->bookService->deleteBook($id);
 
         return response()->json([
-            'message' => 'Book deleted successfully',
+            'message' => $result['message'],
         ]);
     }
 }

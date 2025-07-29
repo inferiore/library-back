@@ -20,7 +20,7 @@ class BookResource extends JsonResource
             'is_available' => $this->isAvailable(),
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
-            
+
             // Include borrowings relationship if loaded
             'borrowings' => BorrowingResource::collection($this->whenLoaded('borrowings')),
         ];

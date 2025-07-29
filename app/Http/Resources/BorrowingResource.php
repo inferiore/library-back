@@ -11,6 +11,8 @@ class BorrowingResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'user_id' => $this->user_id,
+            'book_id' => $this->book_id,
             'borrowed_at' => $this->borrowed_at?->format('Y-m-d H:i:s'),
             'due_at' => $this->due_at?->format('Y-m-d H:i:s'),
             'returned_at' => $this->returned_at?->format('Y-m-d H:i:s'),
@@ -19,7 +21,7 @@ class BorrowingResource extends JsonResource
             'days_until_due' => $this->due_at ? now()->diffInDays($this->due_at, false) : null,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
-            
+
             // Include relationships if loaded
             'user' => new UserResource($this->whenLoaded('user')),
             'book' => new BookResource($this->whenLoaded('book')),

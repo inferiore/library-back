@@ -2,100 +2,94 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Business\Services\DashboardService;
 use App\Http\Controllers\Controller;
-use App\Models\Book;
-use App\Models\Borrowing;
-use App\Models\User;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
+    protected DashboardService $dashboardService;
+
+    public function __construct(DashboardService $dashboardService)
+    {
+        $this->dashboardService = $dashboardService;
+    }
     /**
      * Get dashboard data
-     * 
+     *
      * Retrieve role-specific dashboard information. Librarians see system overview,
      * members see their borrowing information.
-     * 
+     *
      * @group Dashboard
      */
     public function index(Request $request)
     {
-        $user = $request->user();
-
-        if ($user->isLibrarian()) {
-            return $this->librarianDashboard();
-        } else {
-            return $this->memberDashboard($user);
-        }
-    }
-
-    private function librarianDashboard()
-    {
-        $totalBooks = Book::count();
-        $totalBorrowedBooks = Borrowing::active()->count();
-        $booksDueToday = Borrowing::active()
-            ->whereDate('due_at', Carbon::today())
-            ->count();
-
-        // Members with overdue books
-        $membersWithOverdueBooks = User::whereHas('borrowings', function ($query) {
-            $query->overdue();
-        })->with(['borrowings' => function ($query) {
-            $query->overdue()->with('book');
-        }])->get();
-
-        // Recent borrowings
-        $recentBorrowings = Borrowing::with(['user', 'book'])
-            ->latest()
-            ->limit(10)
-            ->get();
+        $result = $this->dashboardService->getDashboardData();
 
         return response()->json([
-            'message' => 'Librarian dashboard data retrieved successfully',
-            'data' => [
-                'stats' => [
-                    'total_books' => $totalBooks,
-                    'total_borrowed_books' => $totalBorrowedBooks,
-                    'books_due_today' => $booksDueToday,
-                    'members_with_overdue_books' => $membersWithOverdueBooks->count(),
-                ],
-                'members_with_overdue_books' => $membersWithOverdueBooks,
-                'recent_borrowings' => $recentBorrowings,
-            ],
+            'message' => $result['message'],
+            'data' => $result['data'],
         ]);
     }
 
-    private function memberDashboard(User $user)
+    /**
+     * Get librarian dashboard data
+     *
+     * Retrieve system overview dashboard information for librarians only.
+     * Includes statistics about total books, borrowed books, due dates, and member activity.
+     *
+     * @group Dashboard
+     * @authenticated
+     * @response 200 {
+     *   "message": "Librarian dashboard data retrieved successfully",
+     *   "data": {
+     *     "stats": {
+     *       "total_books": 150,
+     *       "total_borrowed_books": 45,
+     *       "books_due_today": 5,
+     *       "members_with_overdue_books": 3
+     *     }
+     *   }
+     * }
+     * @response 403 {"message": "Access denied. Required role: librarian"}
+     */
+    public function librarianDashboard()
     {
-        $activeBorrowings = $user->borrowings()
-            ->active()
-            ->with('book')
-            ->get();
-
-        $overdueBorrowings = $user->borrowings()
-            ->overdue()
-            ->with('book')
-            ->get();
-
-        $borrowingHistory = $user->borrowings()
-            ->with('book')
-            ->latest()
-            ->limit(10)
-            ->get();
+        $result = $this->dashboardService->getLibrarianDashboard();
 
         return response()->json([
-            'message' => 'Member dashboard data retrieved successfully',
-            'data' => [
-                'stats' => [
-                    'active_borrowings' => $activeBorrowings->count(),
-                    'overdue_books' => $overdueBorrowings->count(),
-                    'total_books_borrowed' => $user->borrowings()->count(),
-                ],
-                'active_borrowings' => $activeBorrowings,
-                'overdue_books' => $overdueBorrowings,
-                'borrowing_history' => $borrowingHistory,
-            ],
+            'message' => $result['message'],
+            'data' => $result['data'],
+        ]);
+    }
+
+    /**
+     * Get member dashboard data
+     *
+     * Retrieve personal borrowing dashboard information for members only.
+     * Shows active borrowings, overdue books, and borrowing history.
+     *
+     * @group Dashboard
+     * @authenticated
+     * @response 200 {
+     *   "message": "Member dashboard data retrieved successfully", 
+     *   "data": {
+     *     "stats": {
+     *       "active_borrowings": 3,
+     *       "overdue_books": 1,
+     *       "total_books_borrowed": 25
+     *     }
+     *   }
+     * }
+     * @response 403 {"message": "Access denied. Required role: member"}
+     */
+    public function memberDashboard(Request $request)
+    {
+        $result = $this->dashboardService->getMemberDashboard();
+
+        return response()->json([
+            'message' => $result['message'],
+            'data' => $result['data'],
         ]);
     }
 }

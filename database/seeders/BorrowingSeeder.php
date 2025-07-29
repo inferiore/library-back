@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Models\Borrowing;
 use App\Models\Book;
+use App\Models\Borrowing;
 use App\Models\User;
-use Illuminate\Database\Seeder;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class BorrowingSeeder extends Seeder
 {
@@ -18,6 +18,7 @@ class BorrowingSeeder extends Seeder
 
         if ($members->isEmpty() || $books->isEmpty()) {
             $this->command->warn('No members or books found. Please run UserSeeder and BookSeeder first.');
+
             return;
         }
 
@@ -94,12 +95,12 @@ class BorrowingSeeder extends Seeder
 
         foreach ($allBorrowings as $borrowingData) {
             // Skip if user_id or book_id is null
-            if (!$borrowingData['user_id'] || !$borrowingData['book_id']) {
+            if (! $borrowingData['user_id'] || ! $borrowingData['book_id']) {
                 continue;
             }
 
             $borrowing = Borrowing::create($borrowingData);
-            
+
             // Update book available copies for active borrowings
             if (is_null($borrowing->returned_at)) {
                 $book = Book::find($borrowing->book_id);

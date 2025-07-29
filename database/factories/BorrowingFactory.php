@@ -5,7 +5,6 @@ namespace Database\Factories;
 use App\Models\Book;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Carbon\Carbon;
 
 class BorrowingFactory extends Factory
 {
@@ -13,7 +12,7 @@ class BorrowingFactory extends Factory
     {
         $borrowedAt = $this->faker->dateTimeBetween('-2 months', 'now');
         $dueAt = (clone $borrowedAt)->modify('+2 weeks');
-        
+
         return [
             'user_id' => User::factory(),
             'book_id' => Book::factory(),
@@ -34,6 +33,7 @@ class BorrowingFactory extends Factory
     {
         return $this->state(function (array $attributes) {
             $returnedAt = $this->faker->dateTimeBetween($attributes['borrowed_at'], 'now');
+
             return [
                 'returned_at' => $returnedAt,
             ];
@@ -45,7 +45,7 @@ class BorrowingFactory extends Factory
         return $this->state(function (array $attributes) {
             $borrowedAt = $this->faker->dateTimeBetween('-2 months', '-3 weeks');
             $dueAt = (clone $borrowedAt)->modify('+2 weeks');
-            
+
             return [
                 'borrowed_at' => $borrowedAt,
                 'due_at' => $dueAt,

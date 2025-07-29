@@ -2,158 +2,90 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Business\Services\BorrowingService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Borrowing\BorrowBookRequest;
 use App\Http\Resources\BorrowingResource;
-use App\Models\Book;
-use App\Models\Borrowing;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
 
 class BorrowingController extends Controller
 {
+    protected BorrowingService $borrowingService;
+
+    public function __construct(BorrowingService $borrowingService)
+    {
+        $this->borrowingService = $borrowingService;
+    }
     /**
      * List borrowings
-     * 
+     *
      * Retrieve borrowing records. Members see only their own borrowings,
      * librarians see all borrowings.
-     * 
+     *
      * @group Borrowings
      */
     public function index(Request $request)
     {
-        $query = Borrowing::with(['user', 'book']);
-
-        if ($request->user()->isMember()) {
-            $query->where('user_id', $request->user()->id);
-        }
-
-        $borrowings = $query->latest()->paginate(15);
+        $params = $request->only(['status', 'user_id', 'book_id', 'per_page']);
+        $result = $this->borrowingService->getBorrowings($params);
 
         return response()->json([
-            'message' => 'Borrowings retrieved successfully',
-            'data' => BorrowingResource::collection($borrowings->items())->additional([
-                'pagination' => [
-                    'current_page' => $borrowings->currentPage(),
-                    'last_page' => $borrowings->lastPage(),
-                    'per_page' => $borrowings->perPage(),
-                    'total' => $borrowings->total(),
-                ]
+            'message' => $result['message'],
+            'data' => BorrowingResource::collection($result['data']['borrowings'])->additional([
+                'pagination' => $result['data']['pagination'],
             ]),
         ]);
     }
 
     /**
      * Borrow a book
-     * 
+     *
      * Create a new borrowing record. Only members can borrow books.
      * Books must be available and users cannot borrow the same book multiple times.
-     * 
+     *
      * @group Borrowings
      */
     public function store(BorrowBookRequest $request)
     {
-        $user = $request->user();
-        $book = Book::findOrFail($request->book_id);
-
-        // Check if book is available
-        if (!$book->isAvailable()) {
-            return response()->json([
-                'message' => 'Book is not available for borrowing',
-            ], 422);
-        }
-
-        // Check if user already has this book borrowed
-        $existingBorrowing = Borrowing::where('user_id', $user->id)
-            ->where('book_id', $book->id)
-            ->active()
-            ->exists();
-
-        if ($existingBorrowing) {
-            return response()->json([
-                'message' => 'You have already borrowed this book',
-            ], 422);
-        }
-
-        $borrowedAt = Carbon::now();
-        $dueAt = $borrowedAt->copy()->addWeeks(2);
-
-        $borrowing = Borrowing::create([
-            'user_id' => $user->id,
-            'book_id' => $book->id,
-            'borrowed_at' => $borrowedAt,
-            'due_at' => $dueAt,
-        ]);
-
-        // Decrease available copies
-        $book->decrement('available_copies');
-
-        $borrowing->load(['user', 'book']);
+        $result = $this->borrowingService->borrowBook($request->book_id);
 
         return response()->json([
-            'message' => 'Book borrowed successfully',
-            'data' => new BorrowingResource($borrowing),
+            'message' => $result['message'],
+            'data' => new BorrowingResource($result['data']['borrowing']),
         ], 201);
     }
 
     /**
      * Get borrowing details
-     * 
+     *
      * Retrieve details of a specific borrowing record. Members can only see their own borrowings.
-     * 
+     *
      * @group Borrowings
      */
-    public function show(Borrowing $borrowing)
+    public function show($id)
     {
-        $user = request()->user();
-
-        if ($user->isMember() && $borrowing->user_id !== $user->id) {
-            return response()->json([
-                'message' => 'Unauthorized',
-            ], 403);
-        }
-
-        $borrowing->load(['user', 'book']);
+        $result = $this->borrowingService->getBorrowing($id);
 
         return response()->json([
-            'message' => 'Borrowing retrieved successfully',
-            'data' => new BorrowingResource($borrowing),
+            'message' => $result['message'],
+            'data' => new BorrowingResource($result['data']['borrowing']),
         ]);
     }
 
     /**
      * Return a book
-     * 
+     *
      * Mark a borrowing record as returned. Only librarians can perform this action.
-     * 
+     *
      * @group Borrowings
      */
-    public function returnBook(Request $request, Borrowing $borrowing)
+    public function returnBook($id)
     {
-        if (!$request->user()->isLibrarian()) {
-            return response()->json([
-                'message' => 'Only librarians can mark books as returned',
-            ], 403);
-        }
-
-        if ($borrowing->isReturned()) {
-            return response()->json([
-                'message' => 'Book has already been returned',
-            ], 422);
-        }
-
-        $borrowing->update([
-            'returned_at' => Carbon::now(),
-        ]);
-
-        // Increase available copies
-        $borrowing->book->increment('available_copies');
-
-        $borrowing->load(['user', 'book']);
+        $result = $this->borrowingService->returnBook($id);
 
         return response()->json([
-            'message' => 'Book returned successfully',
-            'data' => new BorrowingResource($borrowing),
+            'message' => $result['message'],
+            'data' => new BorrowingResource($result['data']['borrowing']),
         ]);
     }
 }

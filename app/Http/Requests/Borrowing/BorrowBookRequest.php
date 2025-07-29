@@ -8,7 +8,8 @@ class BorrowBookRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->isMember() ?? false;
+        // Both members and librarians can borrow books
+        return $this->user() !== null;
     }
 
     public function rules(): array

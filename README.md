@@ -48,7 +48,7 @@ A comprehensive RESTful API for managing a library system built with Laravel 12.
 
 3. **Environment configuration**
    ```bash
-   cp .env.example .env
+   cp .env.local.example .env.local
    php artisan key:generate
    ```
 

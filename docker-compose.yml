@@ -1,0 +1,62 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: library_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/var/www/html
+      - storage_data:/var/www/html/storage
+      - bootstrap_cache:/var/www/html/bootstrap/cache
+      - ./storage/logs:/var/www/html/storage/logs
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=library
+      - DB_USERNAME=library_user
+      - DB_PASSWORD=library_password
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - library_network
+
+  mysql:
+    image: mysql:8.0
+    container_name: library_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: library
+      MYSQL_USER: library_user
+      MYSQL_PASSWORD: library_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    networks:
+      - library_network
+
+
+volumes:
+  mysql_data:
+    driver: local
+  storage_data:
+    driver: local
+  bootstrap_cache:
+    driver: local
+
+networks:
+  library_network:
+    driver: bridge

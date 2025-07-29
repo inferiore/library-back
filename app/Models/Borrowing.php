@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Borrowing extends Model
 {
@@ -39,12 +39,12 @@ class Borrowing extends Model
 
     public function isReturned(): bool
     {
-        return !is_null($this->returned_at);
+        return ! is_null($this->returned_at);
     }
 
     public function isOverdue(): bool
     {
-        return !$this->isReturned() && Carbon::now()->gt($this->due_at);
+        return ! $this->isReturned() && Carbon::now()->gt($this->due_at);
     }
 
     public function scopeActive($query)
