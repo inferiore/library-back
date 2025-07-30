@@ -14,8 +14,7 @@ class BookManagementTest extends TestCase
     use RefreshDatabase;
     use WithFaker;
 
-    /** @test */
-    public function anyone_can_view_books()
+    public function test_anyone_can_view_books()
     {
         $user = User::factory()->create(['role' => 'member']);
         $token = $user->createToken('test-token')->plainTextToken;
@@ -42,7 +41,7 @@ class BookManagementTest extends TestCase
             ]);
     }
 
-    public function librarian_can_create_book()
+    public function test_librarian_can_create_book()
     {
         $librarian = User::factory()->create(['role' => 'librarian']);
         $token = $librarian->createToken('test-token')->plainTextToken;
@@ -80,7 +79,7 @@ class BookManagementTest extends TestCase
         ]);
     }
 
-    public function member_can_borrow_available_book()
+    public function test_member_can_borrow_available_book()
     {
         $member = User::factory()->create(['role' => 'member']);
         $token = $member->createToken('test-token')->plainTextToken;
@@ -137,7 +136,7 @@ class BookManagementTest extends TestCase
         $this->assertEquals(4, $book->available_copies);
     }
 
-    public function book_creation_requires_valid_data()
+    public function test_book_creation_requires_valid_data()
     {
         $librarian = User::factory()->create(['role' => 'librarian']);
         $token = $librarian->createToken('test-token')->plainTextToken;
@@ -150,7 +149,7 @@ class BookManagementTest extends TestCase
             ->assertJsonValidationErrors(['title', 'author', 'genre', 'isbn', 'total_copies']);
     }
 
-    public function librarian_can_update_book()
+    public function test_librarian_can_update_book()
     {
         $librarian = User::factory()->create(['role' => 'librarian']);
         $token = $librarian->createToken('test-token')->plainTextToken;
@@ -174,7 +173,7 @@ class BookManagementTest extends TestCase
         ]);
     }
 
-    public function librarian_can_delete_book()
+    public function test_librarian_can_delete_book()
     {
         $librarian = User::factory()->create(['role' => 'librarian']);
         $token = $librarian->createToken('test-token')->plainTextToken;
@@ -188,7 +187,7 @@ class BookManagementTest extends TestCase
         $this->assertDatabaseMissing('books', ['id' => $book->id]);
     }
 
-    public function member_cannot_create_book()
+    public function test_member_cannot_create_book()
     {
         $member = User::factory()->create(['role' => 'member']);
         $token = $member->createToken('test-token')->plainTextToken;
@@ -208,7 +207,7 @@ class BookManagementTest extends TestCase
         $response->assertStatus(403);
     }
 
-    public function can_search_books()
+    public function test_can_search_books()
     {
         $user = User::factory()->create();
         $token = $user->createToken('test-token')->plainTextToken;
