@@ -18,7 +18,14 @@ abstract class BaseService
     protected function executeTransaction(callable $callback)
     {
         try {
-            return DB::transaction($callback);
+            // Check if we're already in a transaction (testing environment)
+            if (DB::transactionLevel() > 0) {
+                // If already in transaction, just execute the callback without wrapping
+                return $callback();
+            } else {
+                // Normal transaction execution
+                return DB::transaction($callback);
+            }
         } catch (\Exception $e) {
             Log::error('Service transaction failed: ' . $e->getMessage(), [
                 'service' => static::class,

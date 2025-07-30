@@ -231,25 +231,24 @@ class BorrowingService extends BaseService
             'requested_by' => $user->id
         ]);
 
-        return $this->executeTransaction(function () use ($borrowing, $days, $user) {
-            // Validate using dedicated validators
-            BorrowingValidator::validateExtensionDays($days);
-            BorrowingValidator::validateCanExtend($borrowing, $days);
+        // Validate using dedicated validators
+        BorrowingValidator::validateExtensionDays($days);
+        BorrowingValidator::validateCanExtend($borrowing, $days);
 
-            $oldDueDate = $borrowing->due_at;
-            $newDueDate = $borrowing->due_at->addDays($days);
+        $oldDueDate = $borrowing->due_at;
+        $newDueDate = $borrowing->due_at->addDays($days);
 
-            $borrowing->update([
-                'due_at' => $newDueDate
-            ]);
+        // Single write operation - no transaction needed
+        $borrowing->update([
+            'due_at' => $newDueDate
+        ]);
 
-            return $this->successResponse([
-                'borrowing' => $borrowing->fresh(['user', 'book']),
-                'old_due_date' => $oldDueDate->format('Y-m-d H:i:s'),
-                'new_due_date' => $newDueDate->format('Y-m-d H:i:s'),
-                'extension_days' => $days
-            ], 'Borrowing extended successfully');
-        });
+        return $this->successResponse([
+            'borrowing' => $borrowing->fresh(['user', 'book']),
+            'old_due_date' => $oldDueDate->format('Y-m-d H:i:s'),
+            'new_due_date' => $newDueDate->format('Y-m-d H:i:s'),
+            'extension_days' => $days
+        ], 'Borrowing extended successfully');
     }
 
     /**

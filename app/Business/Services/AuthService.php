@@ -30,27 +30,25 @@ class AuthService extends BaseService
     {
         $this->logOperation('user_registration', ['email' => $userData['email'], 'role' => $userData['role']]);
 
-        return $this->executeTransaction(function () use ($userData) {
-            // Validate using dedicated validator
-            UserValidator::validateRegistrationData($userData);
+        // Validate using dedicated validator
+        UserValidator::validateRegistrationData($userData);
 
-            // Create user
-            $user = $this->userRepository->create([
-                'name' => $userData['name'],
-                'email' => $userData['email'],
-                'password' => Hash::make($userData['password']),
-                'role' => $userData['role'],
-            ]);
+        // Create user
+        $user = $this->userRepository->create([
+            'name' => $userData['name'],
+            'email' => $userData['email'],
+            'password' => Hash::make($userData['password']),
+            'role' => $userData['role'],
+        ]);
 
-            // Generate token
-            $token = $user->createToken('auth_token')->plainTextToken;
+        // Generate token
+        $token = $user->createToken('auth_token')->plainTextToken;
 
-            return $this->successResponse([
-                'user' => $user,
-                'access_token' => $token,
-                'token_type' => 'Bearer',
-            ], 'User registered successfully');
-        });
+        return $this->successResponse([
+            'user' => $user,
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+        ], 'User registered successfully');
     }
 
     /**
@@ -134,24 +132,22 @@ class AuthService extends BaseService
         $user = auth()->user();
         $this->logOperation('profile_update', ['user_id' => $user->id]);
 
-        return $this->executeTransaction(function () use ($user, $userData) {
-            // Validate using dedicated validator
-            UserValidator::validateProfileUpdate($user, $userData);
+        // Validate using dedicated validator
+        UserValidator::validateProfileUpdate($user, $userData);
 
-            // Update allowed fields
-            $allowedFields = ['name', 'email'];
-            $updateData = array_intersect_key($userData, array_flip($allowedFields));
-            
-            if (isset($userData['password'])) {
-                $updateData['password'] = Hash::make($userData['password']);
-            }
+        // Update allowed fields
+        $allowedFields = ['name', 'email'];
+        $updateData = array_intersect_key($userData, array_flip($allowedFields));
+        
+        if (isset($userData['password'])) {
+            $updateData['password'] = Hash::make($userData['password']);
+        }
 
-            $this->userRepository->updateProfile($user->id, $updateData);
+        $this->userRepository->updateProfile($user->id, $updateData);
 
-            return $this->successResponse([
-                'user' => $user->fresh()
-            ], 'Profile updated successfully');
-        });
+        return $this->successResponse([
+            'user' => $user->fresh()
+        ], 'Profile updated successfully');
     }
 
     /**
@@ -169,12 +165,13 @@ class AuthService extends BaseService
         $user = auth()->user();
         $this->logOperation('password_change', ['user_id' => $user->id]);
 
-        return $this->executeTransaction(function () use ($user, $currentPassword, $newPassword) {
-            // Validate using dedicated validators
-            UserValidator::validateCurrentPassword($user, $currentPassword);
-            UserValidator::validatePasswordStrength($newPassword);
-            UserValidator::validatePasswordDifferent($user, $newPassword);
+        // Validate using dedicated validators
+        UserValidator::validateCurrentPassword($user, $currentPassword);
+        UserValidator::validatePasswordStrength($newPassword);
+        UserValidator::validatePasswordDifferent($user, $newPassword);
 
+        // Multiple write operations: update password + revoke tokens - use transaction
+        return $this->executeTransaction(function () use ($user, $newPassword) {
             $this->userRepository->updateProfile($user->id, [
                 'password' => Hash::make($newPassword)
             ]);

@@ -79,29 +79,27 @@ class BookService extends BaseService
         $this->requireRole('librarian');
         $this->logOperation('create_book', ['title' => $bookData['title']]);
 
-        return $this->executeTransaction(function () use ($bookData) {
-            // Validate using dedicated validators
-            BookValidator::validateBookData($bookData);
-            BookValidator::validateUniqueISBN($bookData['isbn'] ?? null);
-            BookValidator::validateTotalCopies($bookData['total_copies']);
-            
-            if (isset($bookData['genre'])) {
-                BookValidator::validateGenre($bookData['genre']);
-            }
+        // Validate using dedicated validators
+        BookValidator::validateBookData($bookData);
+        BookValidator::validateUniqueISBN($bookData['isbn'] ?? null);
+        BookValidator::validateTotalCopies($bookData['total_copies']);
+        
+        if (isset($bookData['genre'])) {
+            BookValidator::validateGenre($bookData['genre']);
+        }
 
-            $book = $this->bookRepository->create([
-                'title' => $bookData['title'],
-                'author' => $bookData['author'],
-                'genre' => $bookData['genre'],
-                'isbn' => $bookData['isbn'] ?? null,
-                'total_copies' => $bookData['total_copies'],
-                'available_copies' => $bookData['total_copies'],
-            ]);
+        $book = $this->bookRepository->create([
+            'title' => $bookData['title'],
+            'author' => $bookData['author'],
+            'genre' => $bookData['genre'],
+            'isbn' => $bookData['isbn'] ?? null,
+            'total_copies' => $bookData['total_copies'],
+            'available_copies' => $bookData['total_copies'],
+        ]);
 
-            return $this->successResponse([
-                'book' => $book
-            ], 'Book created successfully');
-        });
+        return $this->successResponse([
+            'book' => $book
+        ], 'Book created successfully');
     }
 
     /**
@@ -121,40 +119,59 @@ class BookService extends BaseService
 
         $this->logOperation('update_book', ['book_id' => $bookId, 'title' => $bookData['title'] ?? null]);
 
-        return $this->executeTransaction(function () use ($book, $bookData, $bookId) {
-            // Validate using dedicated validators
-            if (isset($bookData['isbn'])) {
-                BookValidator::validateUniqueISBN($bookData['isbn'], $book->id);
-            }
-            
-            if (isset($bookData['total_copies'])) {
-                $borrowedCopies = $book->borrowings()->active()->count();
-                BookValidator::validateTotalCopies($bookData['total_copies'], $borrowedCopies);
-            }
-            
-            if (isset($bookData['genre'])) {
-                BookValidator::validateGenre($bookData['genre']);
-            }
+        // Validate using dedicated validators
+        if (isset($bookData['isbn'])) {
+            BookValidator::validateUniqueISBN($bookData['isbn'], $book->id);
+        }
+        
+        if (isset($bookData['total_copies'])) {
+            $borrowedCopies = $book->borrowings()->active()->count();
+            BookValidator::validateTotalCopies($bookData['total_copies'], $borrowedCopies);
+        }
+        
+        if (isset($bookData['genre'])) {
+            BookValidator::validateGenre($bookData['genre']);
+        }
 
-            // Update basic fields
+        // Check if we need transaction (multiple write operations)
+        $needsTransaction = isset($bookData['total_copies']);
+
+        if ($needsTransaction) {
+            return $this->executeTransaction(function () use ($book, $bookData, $bookId) {
+                // Update basic fields
+                $updateFields = ['title', 'author', 'genre', 'isbn'];
+                $updateData = array_intersect_key($bookData, array_flip($updateFields));
+                
+                if (!empty($updateData)) {
+                    $this->bookRepository->update($book->id, $updateData);
+                }
+
+                // Handle total copies update (second write operation)
+                if (isset($bookData['total_copies'])) {
+                    $borrowedCopies = $book->borrowings()->active()->count();
+                    $this->bookRepository->update($book->id, [
+                        'total_copies' => $bookData['total_copies'],
+                        'available_copies' => max(0, $bookData['total_copies'] - $borrowedCopies)
+                    ]);
+                }
+
+                return $this->successResponse([
+                    'book' => $this->bookRepository->find($bookId)
+                ], 'Book updated successfully');
+            });
+        } else {
+            // Single write operation - no transaction needed
             $updateFields = ['title', 'author', 'genre', 'isbn'];
             $updateData = array_intersect_key($bookData, array_flip($updateFields));
             
-            $this->bookRepository->update($book->id, $updateData);
-
-            // Handle total copies update
-            if (isset($bookData['total_copies'])) {
-                $borrowedCopies = $book->borrowings()->active()->count();
-                $this->bookRepository->update($book->id, [
-                    'total_copies' => $bookData['total_copies'],
-                    'available_copies' => max(0, $bookData['total_copies'] - $borrowedCopies)
-                ]);
+            if (!empty($updateData)) {
+                $this->bookRepository->update($book->id, $updateData);
             }
 
             return $this->successResponse([
                 'book' => $this->bookRepository->find($bookId)
             ], 'Book updated successfully');
-        });
+        }
     }
 
     /**
@@ -173,14 +190,12 @@ class BookService extends BaseService
 
         $this->logOperation('delete_book', ['book_id' => $bookId, 'title' => $book->title]);
 
-        return $this->executeTransaction(function () use ($book) {
-            // Validate using dedicated validator
-            BookValidator::validateCanDelete($book);
+        // Validate using dedicated validator
+        BookValidator::validateCanDelete($book);
 
-            $this->bookRepository->delete($book->id);
+        $this->bookRepository->delete($book->id);
 
-            return $this->successResponse(null, 'Book deleted successfully');
-        });
+        return $this->successResponse(null, 'Book deleted successfully');
     }
 
     /**

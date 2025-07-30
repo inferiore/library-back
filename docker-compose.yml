@@ -17,9 +17,12 @@ services:
       - ./routes:/var/www/html/routes
       - ./tests:/var/www/html/tests
       - ./.env:/var/www/html/.env
+      - ./.env.testing:/var/www/html/.env.testing
       - ./artisan:/var/www/html/artisan
       - ./composer.json:/var/www/html/composer.json
       - ./composer.lock:/var/www/html/composer.lock
+      - ./phpunit.xml:/var/www/html/phpunit.xml
+      - ./phpunit.xml.dist:/var/www/html/phpunit.xml.dist
       # Preserve container-built dependencies and cache
       - /var/www/html/vendor
       - storage_data:/var/www/html/storage
