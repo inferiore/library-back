@@ -33,56 +33,51 @@ A comprehensive RESTful API for managing a library system built with Laravel 12.
 - PHP 8.2 or higher (for local development)
 - Composer (for local development)
 
-### Docker Setup (Recommended)
+### Docker Setup 
+Deployment with Docker
+1. Clone the Repositories
+   First, clone both the backend and frontend repositories:
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd library
-   ```
+# Clone the backend repository
+``` bash
+# Clone the backend repository
+git clone https://github.com/inferiore/library-back.git library
 
-2. **Start the application with Docker**
-   ```bash
-   docker-compose up -d
-   ```
+# Clone the frontend repository
+git clone https://github.com/inferiore/library-front.git library-react
+```
 
-3. **Run database migrations and seeders**
+```
+Your directory structure should look like:
+    ├── library/           # Backend (Laravel API)
+    └── library-react/     # Frontend (React App)
+```
+
+### 1. Start the Full Stack
+
+Navigate to the backend directory and start all services:
+
+```bash
+cd library
+docker-compose up --build
+```
+
+This will start:
+- **MySQL Database** on port `3306`
+- **Laravel Backend API** on port `8000`
+- **React Frontend** on port `3000`
+
+### 2. Access the Application
+
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+- **Database**: localhost:3306
+
+ 
+### 3. Run database migrations and seeders**
    ```bash
    docker-compose exec app php artisan migrate --seed
    ```
-
-The API will be available at `http://localhost:8000`
-
-### Local Development Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd library
-   ```
-
-2. **Install dependencies**
-   ```bash
-   composer install
-   ```
-
-3. **Environment configuration**
-   ```bash
-   cp .env.local.example .env.local
-   php artisan key:generate
-   ```
-
-4. **Database setup**
-   ```bash
-   php artisan migrate --seed
-   ```
-
-5. **Start the development server**
-   ```bash
-   php artisan serve
-   ```
-
-The API will be available at `http://localhost:8000`
 
 ## Demo Credentials
 
@@ -146,11 +141,6 @@ Import the provided Postman collection to test the API:
 ### Docker Environment
 ```bash
 docker-compose exec app php artisan test
-```
-
-### Local Environment
-```bash
-php artisan test
 ```
 
 The test suite includes:

@@ -36,13 +36,9 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      # Mount source code for hot reloading
-      - ../library-react/src:/app/src
-      - ../library-react/public:/app/public
-      # Mount package.json for dependency changes
-      - ../library-react/package.json:/app/package.json
-      - ../library-react/package-lock.json:/app/package-lock.json
-      # Prevent node_modules from being mounted (use container's version)
+      # Mount the entire project for development
+      - ../library-react:/app
+      # Prevent node_modules from being overwritten by host
       - /app/node_modules
     environment:
       - CHOKIDAR_USEPOLLING=true
