@@ -74,9 +74,14 @@ This will start:
 - **Database**: localhost:3306
 
  
-### 3. Run database migrations and seeders**
+### 3. Run database migrations
    ```bash
-   docker-compose exec app php artisan migrate --seed
+   docker-compose exec app php artisan migrate
+   ```
+
+### 4. (Optional) Seed demo data
+   ```bash
+   docker-compose exec app php artisan db:seed
    ```
 
 ## Demo Credentials

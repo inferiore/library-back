@@ -15,7 +15,6 @@
 !/bootstrap/cache/.gitkeep
 
 # Environment files
-.env.local
 .env.*
 !.env.example
 

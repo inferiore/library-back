@@ -16,7 +16,7 @@ services:
       - ./resources:/var/www/html/resources
       - ./routes:/var/www/html/routes
       - ./tests:/var/www/html/tests
-      - ./.env.local:/var/www/html/.env
+      - ./.env:/var/www/html/.env
       - ./artisan:/var/www/html/artisan
       - ./composer.json:/var/www/html/composer.json
       - ./composer.lock:/var/www/html/composer.lock

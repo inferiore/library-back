@@ -21,11 +21,8 @@ echo "Optimizing application..."
 php artisan config:cache
 php artisan route:cache
 
-# Seed database if needed
-if [ "$(php artisan tinker --execute='echo App\Models\User::count();' 2>/dev/null | tail -1)" = "0" ]; then
-  echo "Seeding database..."
-  php artisan db:seed --force
-fi
+# Database seeding must be done manually
+# Run: docker-compose exec app php artisan db:seed
 
 # Start server
 echo "Starting server on http://0.0.0.0:8000"
