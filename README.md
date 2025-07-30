@@ -29,11 +29,31 @@ A comprehensive RESTful API for managing a library system built with Laravel 12.
 ## Installation
 
 ### Prerequisites
-- PHP 8.2 or higher
-- Composer
-- SQLite (default) or MySQL/PostgreSQL
+- Docker and Docker Compose
+- PHP 8.2 or higher (for local development)
+- Composer (for local development)
 
-### Setup Steps
+### Docker Setup (Recommended)
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd library
+   ```
+
+2. **Start the application with Docker**
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **Run database migrations and seeders**
+   ```bash
+   docker-compose exec app php artisan migrate --seed
+   ```
+
+The API will be available at `http://localhost:8000`
+
+### Local Development Setup
 
 1. **Clone the repository**
    ```bash
@@ -68,128 +88,15 @@ The API will be available at `http://localhost:8000`
 
 ### Librarian Account
 - **Email**: `librarian@library.com`
-- **Password**: `password123`
+- **Password**: `Password123!`
 
 ### Member Accounts
-- **Email**: `alice@example.com` | **Password**: `password123`
-- **Email**: `bob@example.com` | **Password**: `password123`
-- **Email**: `carol@example.com` | **Password**: `password123`
-- **Email**: `david@example.com` | **Password**: `password123`
-- **Email**: `emma@example.com` | **Password**: `password123`
+- **Email**: `alice@example.com` | **Password**: `Password123!`
+- **Email**: `bob@example.com` | **Password**: `Password123!`
+- **Email**: `carol@example.com` | **Password**: `Password123!`
+- **Email**: `david@example.com` | **Password**: `Password123!`
+- **Email**: `emma@example.com` | **Password**: `Password123!`
 
-## API Endpoints
-
-### Authentication
-```
-POST   /api/register          # User registration
-POST   /api/login             # User login
-POST   /api/logout            # User logout (authenticated)
-GET    /api/me                # Get user profile (authenticated)
-```
-
-### Dashboard
-```
-GET    /api/dashboard         # Role-specific dashboard data
-```
-
-### Books
-```
-GET    /api/books             # List all books (with search)
-POST   /api/books             # Create book (Librarian only)
-GET    /api/books/{id}        # Show book details
-PUT    /api/books/{id}        # Update book (Librarian only)
-DELETE /api/books/{id}        # Delete book (Librarian only)
-```
-
-### Borrowings
-```
-GET    /api/borrowings        # List borrowings (filtered by role)
-POST   /api/borrowings        # Borrow a book (Member only)
-GET    /api/borrowings/{id}   # Show borrowing details
-PATCH  /api/borrowings/{id}/return  # Return book (Librarian only)
-```
-
-## API Usage Examples
-
-### Authentication
-```bash
-# Register
-curl -X POST http://localhost:8000/api/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "John Doe",
-    "email": "john@example.com",
-    "password": "password123",
-    "password_confirmation": "password123",
-    "role": "member"
-  }'
-
-# Login
-curl -X POST http://localhost:8000/api/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "librarian@library.com",
-    "password": "password123"
-  }'
-```
-
-### Books (with Authentication)
-```bash
-# List books with search
-curl -X GET "http://localhost:8000/api/books?search=gatsby" \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# Create book (Librarian only)
-curl -X POST http://localhost:8000/api/books \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "New Book",
-    "author": "Author Name",
-    "genre": "Fiction",
-    "isbn": "978-1234567890",
-    "total_copies": 3
-  }'
-```
-
-### Borrowing
-```bash
-# Borrow a book (Member only)
-curl -X POST http://localhost:8000/api/borrowings \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "book_id": 1
-  }'
-
-# Return a book (Librarian only)
-curl -X PATCH http://localhost:8000/api/borrowings/1/return \
-  -H "Authorization: Bearer YOUR_TOKEN"
-```
-
-## Response Format
-
-All API responses follow a consistent format:
-
-### Success Response
-```json
-{
-  "message": "Operation successful",
-  "data": {
-    // Response data
-  }
-}
-```
-
-### Error Response
-```json
-{
-  "message": "Error description",
-  "errors": {
-    "field": ["Validation error message"]
-  }
-}
-```
 
 ## Business Rules
 
@@ -211,16 +118,6 @@ All API responses follow a consistent format:
 - Members can only see their own borrowing records
 - Librarians have full access to all system data
 
-## Database Schema
-
-### Users Table
-- `id`, `name`, `email`, `password`, `role` (librarian/member)
-
-### Books Table
-- `id`, `title`, `author`, `genre`, `isbn`, `total_copies`, `available_copies`
-
-### Borrowings Table
-- `id`, `user_id`, `book_id`, `borrowed_at`, `due_at`, `returned_at`
 
 ## API Documentation
 
@@ -246,7 +143,12 @@ Import the provided Postman collection to test the API:
 
 ## Testing
 
-Run the test suite:
+### Docker Environment
+```bash
+docker-compose exec app php artisan test
+```
+
+### Local Environment
 ```bash
 php artisan test
 ```
@@ -256,15 +158,6 @@ The test suite includes:
 - Book management tests (CRUD operations, authorization)
 - Feature tests for all major functionality
 - Database factories for test data generation
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Run the test suite
-6. Submit a pull request
 
 ## License
 

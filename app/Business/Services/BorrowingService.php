@@ -7,6 +7,9 @@ use App\Business\Exceptions\BookAlreadyReturnedException;
 use App\Business\Exceptions\BookNotAvailableException;
 use App\Business\Exceptions\BusinessException;
 use App\Business\Exceptions\UnauthorizedException;
+use App\Business\Validators\BorrowingValidator;
+use App\Business\Validators\ModelValidator;
+use App\Business\Validators\UserValidator;
 use App\Data\Repositories\Contracts\BookRepositoryInterface;
 use App\Data\Repositories\Contracts\BorrowingRepositoryInterface;
 use App\Data\Repositories\Contracts\UserRepositoryInterface;
@@ -49,6 +52,9 @@ class BorrowingService extends BaseService
             $params['user_id'] = $user->id;
         }
 
+        // Validate filters using dedicated validator
+        BorrowingValidator::validateBorrowingFilters($params);
+        
         $perPage = $params['per_page'] ?? 15;
         $borrowings = $this->borrowingRepository->with(['user', 'book'])->findByFilters($params, $perPage);
 
@@ -75,14 +81,12 @@ class BorrowingService extends BaseService
         $this->requireAuth();
         
         $borrowing = $this->borrowingRepository->with(['user', 'book'])->find($borrowingId);
-        $this->ensureModelExists($borrowing, 'Borrowing');
+        ModelValidator::validateExists($borrowing, 'Borrowing');
 
         $user = auth()->user();
 
-        // Members can only see their own borrowings
-        if ($user->isMember() && $borrowing->user_id !== $user->id) {
-            throw new UnauthorizedException('You can only view your own borrowings');
-        }
+        // Validate access using dedicated validator
+        BorrowingValidator::validateBorrowingAccess($user, $borrowing);
 
         $this->logOperation('get_borrowing', ['borrowing_id' => $borrowingId]);
 
@@ -112,10 +116,10 @@ class BorrowingService extends BaseService
         }
 
         $book = $this->bookRepository->find($bookId);
-        $this->ensureModelExists($book, 'Book');
+        ModelValidator::validateExists($book, 'Book');
 
         $borrower = $this->userRepository->find($borrowerUserId);
-        $this->ensureModelExists($borrower, 'User');
+        ModelValidator::validateExists($borrower, 'User');
 
         $this->logOperation('borrow_book', [
             'book_id' => $bookId,
@@ -124,32 +128,8 @@ class BorrowingService extends BaseService
         ]);
 
         return $this->executeTransaction(function () use ($book, $borrower, $currentUser) {
-            // Validate business rules
-            $this->validateBusinessRules([
-                'book_available' => function() use ($book) {
-                    if (!$book->isAvailable()) {
-                        throw new BookNotAvailableException($book->title);
-                    }
-                    return true;
-                },
-                'no_duplicate_borrowing' => function() use ($book, $borrower) {
-                    $existingBorrowing = $this->borrowingRepository->findActiveBorrowingByUserAndBook($borrower->id, $book->id);
-                    
-                    if ($existingBorrowing) {
-                        throw new BookAlreadyBorrowedException();
-                    }
-                    return true;
-                },
-                'borrower_limit' => function() use ($borrower) {
-                    $activeBorrowings = $this->borrowingRepository->countActiveBorrowingsByUser($borrower->id);
-                    $maxBorrowings = $borrower->isLibrarian() ? 10 : 5; // Business rule: different limits
-                    
-                    if ($activeBorrowings >= $maxBorrowings) {
-                        return "User has reached maximum borrowing limit ({$maxBorrowings} books)";
-                    }
-                    return true;
-                }
-            ]);
+            // Validate using dedicated validators
+            BorrowingValidator::validateCanBorrow($borrower, $book);
 
             // Calculate dates
             $borrowedAt = Carbon::now();
@@ -187,8 +167,8 @@ class BorrowingService extends BaseService
     {
         $this->requireRole('librarian');
         
-        $borrowing = Borrowing::with(['user', 'book'])->find($borrowingId);
-        $this->ensureModelExists($borrowing, 'Borrowing');
+        $borrowing = $this->borrowingRepository->with(['user', 'book'])->find($borrowingId);
+        ModelValidator::validateExists($borrowing, 'Borrowing');
 
         $this->logOperation('return_book', [
             'borrowing_id' => $borrowingId,
@@ -197,15 +177,8 @@ class BorrowingService extends BaseService
         ]);
 
         return $this->executeTransaction(function () use ($borrowing) {
-            // Validate business rules
-            $this->validateBusinessRules([
-                'not_already_returned' => function() use ($borrowing) {
-                    if ($borrowing->isReturned()) {
-                        throw new BookAlreadyReturnedException();
-                    }
-                    return true;
-                }
-            ]);
+            // Validate using dedicated validator
+            BorrowingValidator::validateCanReturn($borrowing);
 
             $returnedAt = Carbon::now();
             $wasOverdue = $borrowing->due_at < $returnedAt;
@@ -244,15 +217,13 @@ class BorrowingService extends BaseService
     {
         $this->requireAuth();
         
-        $borrowing = Borrowing::with(['user', 'book'])->find($borrowingId);
-        $this->ensureModelExists($borrowing, 'Borrowing');
+        $borrowing = $this->borrowingRepository->with(['user', 'book'])->find($borrowingId);
+        ModelValidator::validateExists($borrowing, 'Borrowing');
 
         $user = auth()->user();
 
-        // Check authorization: user can extend their own borrowings, librarians can extend any
-        if (!$user->isLibrarian() && $borrowing->user_id !== $user->id) {
-            throw new UnauthorizedException('You can only extend your own borrowings');
-        }
+        // Validate access using dedicated validator
+        BorrowingValidator::validateBorrowingAccess($user, $borrowing);
 
         $this->logOperation('extend_borrowing', [
             'borrowing_id' => $borrowingId,
@@ -261,31 +232,9 @@ class BorrowingService extends BaseService
         ]);
 
         return $this->executeTransaction(function () use ($borrowing, $days, $user) {
-            // Validate business rules
-            $this->validateBusinessRules([
-                'not_returned' => function() use ($borrowing) {
-                    if ($borrowing->isReturned()) {
-                        return 'Cannot extend a returned borrowing';
-                    }
-                    return true;
-                },
-                'extension_limit' => function() use ($borrowing, $days) {
-                    $maxExtensionDays = 14; // Business rule: max 2 weeks extension
-                    $currentExtension = $borrowing->borrowed_at->diffInDays($borrowing->due_at) - 14; // Original is 14 days
-                    
-                    if (($currentExtension + $days) > $maxExtensionDays) {
-                        return "Extension would exceed maximum limit of {$maxExtensionDays} days";
-                    }
-                    return true;
-                },
-                'librarian_permission' => function() use ($borrowing, $user) {
-                    // Only librarians can extend overdue books
-                    if ($borrowing->due_at < Carbon::now() && !$user->isLibrarian()) {
-                        return 'Only librarians can extend overdue borrowings';
-                    }
-                    return true;
-                }
-            ]);
+            // Validate using dedicated validators
+            BorrowingValidator::validateExtensionDays($days);
+            BorrowingValidator::validateCanExtend($borrowing, $days);
 
             $oldDueDate = $borrowing->due_at;
             $newDueDate = $borrowing->due_at->addDays($days);
@@ -314,10 +263,7 @@ class BorrowingService extends BaseService
         $this->requireRole('librarian');
         $this->logOperation('get_overdue_borrowings');
 
-        $overdueBorrowings = Borrowing::with(['user', 'book'])
-            ->overdue()
-            ->orderBy('due_at')
-            ->get();
+        $overdueBorrowings = $this->borrowingRepository->getOverdueCollection();
 
         $overdueStats = [
             'total_overdue' => $overdueBorrowings->count(),
@@ -348,34 +294,23 @@ class BorrowingService extends BaseService
         $this->requireRole('librarian');
         $this->logOperation('get_borrowing_statistics', $filters);
 
-        $query = Borrowing::query();
+        // Validate filters using dedicated validator
+        BorrowingValidator::validateStatisticsFilters($filters);
 
-        // Apply date filters
-        if (!empty($filters['from_date'])) {
-            $query->where('borrowed_at', '>=', $filters['from_date']);
-        }
-        if (!empty($filters['to_date'])) {
-            $query->where('borrowed_at', '<=', $filters['to_date']);
-        }
+        // Get statistics using repository methods
+        $statistics = $this->borrowingRepository->getStatistics(
+            $filters['from_date'] ?? '1900-01-01', 
+            $filters['to_date'] ?? now()->format('Y-m-d')
+        );
 
         $stats = [
-            'total_borrowings' => $query->count(),
-            'active_borrowings' => Borrowing::active()->count(),
-            'returned_borrowings' => Borrowing::returned()->count(),
-            'overdue_borrowings' => Borrowing::overdue()->count(),
-            'borrowings_by_month' => Borrowing::selectRaw('YEAR(borrowed_at) as year, MONTH(borrowed_at) as month, COUNT(*) as count')
-                ->groupBy('year', 'month')
-                ->orderBy('year', 'desc')
-                ->orderBy('month', 'desc')
-                ->limit(12)
-                ->get(),
-            'most_active_borrowers' => User::withCount(['borrowings'])
-                ->orderBy('borrowings_count', 'desc')
-                ->limit(10)
-                ->get(),
-            'average_borrowing_duration' => Borrowing::returned()
-                ->selectRaw('AVG(DATEDIFF(returned_at, borrowed_at)) as avg_days')
-                ->value('avg_days')
+            'total_borrowings' => $statistics['total_borrowings'],
+            'active_borrowings' => $statistics['active_borrowings'],
+            'returned_borrowings' => $statistics['returned_borrowings'],
+            'overdue_borrowings' => $statistics['overdue_borrowings'],
+            'borrowings_by_month' => $this->borrowingRepository->getMonthlyTrends(12),
+            'most_active_borrowers' => $this->userRepository->getMostActiveBorrowers(10),
+            'average_borrowing_duration' => $statistics['average_duration_days']
         ];
 
         return $this->successResponse($stats, 'Borrowing statistics retrieved successfully');

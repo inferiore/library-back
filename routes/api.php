@@ -21,9 +21,6 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('role:librarian');
     Route::get('/dashboard/member', [DashboardController::class, 'memberDashboard'])
         ->middleware('role:member');
-    
-    // Legacy dashboard route (keeps backward compatibility)
-    Route::get('/dashboard', [DashboardController::class, 'index']);
 
     // Books
     Route::apiResource('books', BookController::class);

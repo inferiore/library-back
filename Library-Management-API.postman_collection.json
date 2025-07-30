@@ -11,7 +11,7 @@
 			{
 				"key": "token",
 				"value": "{{access_token}}",
-				"type": "string"
+				"type": "string"w
 			}
 		]
 	},

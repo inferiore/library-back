@@ -3,7 +3,6 @@
 namespace App\Business\Services;
 
 use App\Business\Exceptions\BusinessException;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -114,17 +113,4 @@ abstract class BaseService
         ];
     }
 
-    /**
-     * Validate model exists
-     *
-     * @param Model|null $model
-     * @param string $type
-     * @throws BusinessException
-     */
-    protected function ensureModelExists(?Model $model, string $type): void
-    {
-        if (!$model) {
-            throw new BusinessException("{$type} not found", 404);
-        }
-    }
 }

@@ -66,6 +66,20 @@ interface BorrowingRepositoryInterface extends RepositoryInterface
     public function findDueToday(): Collection;
 
     /**
+     * Get count of active borrowings
+     *
+     * @return int
+     */
+    public function getActiveBorrowingsCount(): int;
+
+    /**
+     * Get count of overdue borrowings
+     *
+     * @return int
+     */
+    public function getOverdueCount(): int;
+
+    /**
      * Find user's active borrowing for specific book
      *
      * @param int $userId

@@ -5,6 +5,8 @@ namespace App\Business\Services;
 use App\Business\Exceptions\BusinessException;
 use App\Business\Exceptions\BookHasActiveBorrowingsException;
 use App\Business\Exceptions\UnauthorizedException;
+use App\Business\Validators\BookValidator;
+use App\Business\Validators\ModelValidator;
 use App\Data\Repositories\Contracts\BookRepositoryInterface;
 use App\Models\Book;
 use Illuminate\Database\Eloquent\Builder;
@@ -56,7 +58,7 @@ class BookService extends BaseService
     public function getBook(int $bookId): array
     {
         $book = $this->bookRepository->find($bookId);
-        $this->ensureModelExists($book, 'Book');
+        ModelValidator::validateExists($book, 'Book');
 
         $this->logOperation('get_book', ['book_id' => $bookId]);
 
@@ -78,17 +80,14 @@ class BookService extends BaseService
         $this->logOperation('create_book', ['title' => $bookData['title']]);
 
         return $this->executeTransaction(function () use ($bookData) {
-            // Validate business rules
-            $this->validateBusinessRules([
-                'isbn_unique' => function() use ($bookData) {
-                    if (isset($bookData['isbn']) && $this->bookRepository->findByISBN($bookData['isbn'])) {
-                        return 'A book with this ISBN already exists';
-                    }
-                    return true;
-                },
-                'valid_copies' => fn() => ($bookData['total_copies'] ?? 0) > 0 
-                    ? true : 'Total copies must be greater than 0'
-            ], $bookData);
+            // Validate using dedicated validators
+            BookValidator::validateBookData($bookData);
+            BookValidator::validateUniqueISBN($bookData['isbn'] ?? null);
+            BookValidator::validateTotalCopies($bookData['total_copies']);
+            
+            if (isset($bookData['genre'])) {
+                BookValidator::validateGenre($bookData['genre']);
+            }
 
             $book = $this->bookRepository->create([
                 'title' => $bookData['title'],
@@ -118,32 +117,24 @@ class BookService extends BaseService
         $this->requireRole('librarian');
         
         $book = $this->bookRepository->find($bookId);
-        $this->ensureModelExists($book, 'Book');
+        ModelValidator::validateExists($book, 'Book');
 
         $this->logOperation('update_book', ['book_id' => $bookId, 'title' => $bookData['title'] ?? null]);
 
         return $this->executeTransaction(function () use ($book, $bookData, $bookId) {
-            // Validate business rules
-            $this->validateBusinessRules([
-                'isbn_unique' => function() use ($bookData, $book) {
-                    if (isset($bookData['isbn']) && $bookData['isbn'] !== $book->isbn) {
-                        $existingBook = $this->bookRepository->findByISBN($bookData['isbn']);
-                        if ($existingBook && $existingBook->id !== $book->id) {
-                            return 'A book with this ISBN already exists';
-                        }
-                    }
-                    return true;
-                },
-                'valid_copies' => function() use ($bookData, $book) {
-                    if (isset($bookData['total_copies'])) {
-                        $borrowedCopies = $book->borrowings()->active()->count();
-                        if ($bookData['total_copies'] < $borrowedCopies) {
-                            return "Cannot set total copies below borrowed copies ({$borrowedCopies})";
-                        }
-                    }
-                    return true;
-                }
-            ], $bookData);
+            // Validate using dedicated validators
+            if (isset($bookData['isbn'])) {
+                BookValidator::validateUniqueISBN($bookData['isbn'], $book->id);
+            }
+            
+            if (isset($bookData['total_copies'])) {
+                $borrowedCopies = $book->borrowings()->active()->count();
+                BookValidator::validateTotalCopies($bookData['total_copies'], $borrowedCopies);
+            }
+            
+            if (isset($bookData['genre'])) {
+                BookValidator::validateGenre($bookData['genre']);
+            }
 
             // Update basic fields
             $updateFields = ['title', 'author', 'genre', 'isbn'];
@@ -178,20 +169,13 @@ class BookService extends BaseService
         $this->requireRole('librarian');
         
         $book = $this->bookRepository->find($bookId);
-        $this->ensureModelExists($book, 'Book');
+        ModelValidator::validateExists($book, 'Book');
 
         $this->logOperation('delete_book', ['book_id' => $bookId, 'title' => $book->title]);
 
         return $this->executeTransaction(function () use ($book) {
-            // Validate business rules
-            $this->validateBusinessRules([
-                'no_active_borrowings' => function() use ($book) {
-                    if ($book->borrowings()->active()->exists()) {
-                        throw new BookHasActiveBorrowingsException();
-                    }
-                    return true;
-                }
-            ]);
+            // Validate using dedicated validator
+            BookValidator::validateCanDelete($book);
 
             $this->bookRepository->delete($book->id);
 
@@ -209,7 +193,7 @@ class BookService extends BaseService
     public function checkAvailability(int $bookId): array
     {
         $book = $this->bookRepository->find($bookId);
-        $this->ensureModelExists($book, 'Book');
+        ModelValidator::validateExists($book, 'Book');
 
         $this->logOperation('check_availability', ['book_id' => $bookId]);
 
@@ -256,6 +240,9 @@ class BookService extends BaseService
     public function searchBooks(array $searchCriteria): array
     {
         $this->logOperation('search_books', $searchCriteria);
+
+        // Validate search parameters using dedicated validator
+        BookValidator::validateSearchParams($searchCriteria);
 
         $perPage = $searchCriteria['per_page'] ?? 15;
         $sortBy = $searchCriteria['sort_by'] ?? 'title';

@@ -123,4 +123,6 @@ interface BookRepositoryInterface extends RepositoryInterface
      * @return LengthAwarePaginator
      */
     public function findByCriteria(array $criteria, array $sorting = [], int $perPage = 15): LengthAwarePaginator;
+
+    public function getTotalCount();
 }

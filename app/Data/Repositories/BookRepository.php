@@ -3,6 +3,7 @@
 namespace App\Data\Repositories;
 
 use App\Data\Repositories\Contracts\BookRepositoryInterface;
+use App\Data\QueryObjects\BookSearchQueryObject;
 use App\Models\Book;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -29,19 +30,16 @@ class BookRepository extends AbstractRepository implements BookRepositoryInterfa
      */
     public function search(string $search, array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        $this->query->where(function ($query) use ($search) {
-            $query->where('title', 'LIKE', "%{$search}%")
-                  ->orWhere('author', 'LIKE', "%{$search}%")
-                  ->orWhere('genre', 'LIKE', "%{$search}%")
-                  ->orWhere('isbn', 'LIKE', "%{$search}%");
-        });
-
-        $this->applyFilters($filters);
+        $criteria = array_merge(['search' => $search], $filters);
+        
+        $searchQuery = new BookSearchQueryObject($this->query);
+        $searchQuery->setCriteria($criteria)->apply();
+        
         $this->applyRelations();
 
         $result = $this->query->paginate($perPage);
         $this->resetQuery();
-        
+
         return $result;
     }
 
@@ -58,7 +56,7 @@ class BookRepository extends AbstractRepository implements BookRepositoryInterfa
 
         $result = $this->query->paginate($perPage);
         $this->resetQuery();
-        
+
         return $result;
     }
 
@@ -76,7 +74,7 @@ class BookRepository extends AbstractRepository implements BookRepositoryInterfa
 
         $result = $this->query->paginate($perPage);
         $this->resetQuery();
-        
+
         return $result;
     }
 
@@ -94,7 +92,7 @@ class BookRepository extends AbstractRepository implements BookRepositoryInterfa
 
         $result = $this->query->paginate($perPage);
         $this->resetQuery();
-        
+
         return $result;
     }
 
@@ -109,7 +107,7 @@ class BookRepository extends AbstractRepository implements BookRepositoryInterfa
         $this->applyRelations();
         $result = $this->query->where('isbn', $isbn)->first();
         $this->resetQuery();
-        
+
         return $result;
     }
 
@@ -124,11 +122,11 @@ class BookRepository extends AbstractRepository implements BookRepositoryInterfa
     {
         $this->query->where('available_copies', '<=', $threshold)
                     ->where('available_copies', '>', 0);
-        
+
         $this->applyRelations();
         $result = $this->query->get();
         $this->resetQuery();
-        
+
         return $result;
     }
 
@@ -143,7 +141,7 @@ class BookRepository extends AbstractRepository implements BookRepositoryInterfa
                              ->groupBy('genre')
                              ->orderBy('count', 'desc')
                              ->get();
-        
+
         $this->resetQuery();
         return $result;
     }
@@ -159,11 +157,11 @@ class BookRepository extends AbstractRepository implements BookRepositoryInterfa
     {
         $this->query->whereBetween('created_at', [$startDate, $endDate])
                     ->orderBy('created_at', 'desc');
-        
+
         $this->applyRelations();
         $result = $this->query->get();
         $this->resetQuery();
-        
+
         return $result;
     }
 
@@ -178,7 +176,7 @@ class BookRepository extends AbstractRepository implements BookRepositoryInterfa
     {
         $result = $this->query->where('id', $bookId)
                              ->increment('available_copies', $change);
-        
+
         $this->resetQuery();
         return $result > 0;
     }
@@ -193,11 +191,11 @@ class BookRepository extends AbstractRepository implements BookRepositoryInterfa
         $this->query->whereDoesntHave('borrowings', function ($query) {
             $query->active();
         });
-        
+
         $this->applyRelations();
         $result = $this->query->get();
         $this->resetQuery();
-        
+
         return $result;
     }
 
@@ -213,11 +211,11 @@ class BookRepository extends AbstractRepository implements BookRepositoryInterfa
         })->withCount(['borrowings' => function ($query) {
             $query->active();
         }]);
-        
+
         $this->applyRelations();
         $result = $this->query->get();
         $this->resetQuery();
-        
+
         return $result;
     }
 
@@ -230,7 +228,7 @@ class BookRepository extends AbstractRepository implements BookRepositoryInterfa
     {
         $result = $this->query->sum('total_copies');
         $this->resetQuery();
-        
+
         return $result;
     }
 
@@ -243,7 +241,7 @@ class BookRepository extends AbstractRepository implements BookRepositoryInterfa
     {
         $result = $this->query->sum('available_copies');
         $this->resetQuery();
-        
+
         return $result;
     }
 
@@ -257,13 +255,16 @@ class BookRepository extends AbstractRepository implements BookRepositoryInterfa
      */
     public function findByCriteria(array $criteria, array $sorting = [], int $perPage = 15): LengthAwarePaginator
     {
-        $this->applyCriteria($criteria);
-        $this->applySorting($sorting);
+        $searchCriteria = array_merge($criteria, $sorting);
+        
+        $searchQuery = new BookSearchQueryObject($this->query);
+        $searchQuery->setCriteria($searchCriteria)->apply();
+        
         $this->applyRelations();
 
         $result = $this->query->paginate($perPage);
         $this->resetQuery();
-        
+
         return $result;
     }
 
@@ -343,8 +344,8 @@ class BookRepository extends AbstractRepository implements BookRepositoryInterfa
             'avg_copies_per_book' => round($stats->avg_copies_per_book ?? 0, 2),
             'total_genres' => $stats->total_genres ?? 0,
             'total_authors' => $stats->total_authors ?? 0,
-            'utilization_rate' => $stats->total_copies > 0 
-                ? round((($stats->total_copies - $stats->available_copies) / $stats->total_copies) * 100, 2) 
+            'utilization_rate' => $stats->total_copies > 0
+                ? round((($stats->total_copies - $stats->available_copies) / $stats->total_copies) * 100, 2)
                 : 0
         ];
     }
@@ -372,5 +373,10 @@ class BookRepository extends AbstractRepository implements BookRepositoryInterfa
             'high_demand' => $highDemand,
             'attention_needed' => $lowStock->count() + $highDemand->count()
         ];
+    }
+
+    public function getTotalCount(): int
+    {
+        return $this->query->count();
     }
 }

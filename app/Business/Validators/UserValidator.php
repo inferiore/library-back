@@ -131,8 +131,8 @@ class UserValidator
             throw new BusinessException('Name cannot exceed 100 characters');
         }
 
-        if (!preg_match('/^[a-zA-Z\s\'-]+$/', $name)) {
-            throw new BusinessException('Name can only contain letters, spaces, hyphens, and apostrophes');
+        if (!preg_match('/^[a-zA-Z\s\.\'\-]+$/', $name)) {
+            throw new BusinessException('Name can only contain letters, spaces, hyphens, apostrophes, and periods');
         }
     }
 
@@ -230,6 +230,7 @@ class UserValidator
             'view_system_stats' => ['librarian'],
             'extend_overdue_borrowing' => ['librarian'],
             'borrow_book' => ['librarian', 'member'],
+            'borrow_for_others' => ['librarian'],
             'view_own_borrowings' => ['librarian', 'member'],
             'extend_borrowing' => ['librarian', 'member']
         ];

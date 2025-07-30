@@ -3,6 +3,8 @@
 namespace App\Business\Services;
 
 use App\Business\Exceptions\BusinessException;
+use App\Business\Validators\ModelValidator;
+use App\Business\Validators\UserValidator;
 use App\Data\Repositories\Contracts\UserRepositoryInterface;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -29,13 +31,8 @@ class AuthService extends BaseService
         $this->logOperation('user_registration', ['email' => $userData['email'], 'role' => $userData['role']]);
 
         return $this->executeTransaction(function () use ($userData) {
-            // Validate business rules
-            $this->validateBusinessRules([
-                'valid_role' => fn() => in_array($userData['role'], ['librarian', 'member']) 
-                    ? true : 'Invalid role specified',
-                'unique_email' => fn() => $this->userRepository->isEmailUnique($userData['email']) 
-                    ? true : 'Email already exists'
-            ], $userData);
+            // Validate using dedicated validator
+            UserValidator::validateRegistrationData($userData);
 
             // Create user
             $user = $this->userRepository->create([
@@ -67,19 +64,21 @@ class AuthService extends BaseService
     {
         $this->logOperation('user_login', ['email' => $credentials['email']]);
 
-        // Validate business rules
-        $this->validateBusinessRules([
-            'valid_credentials' => function() use ($credentials) {
-                if (!Auth::attempt($credentials)) {
-                    throw ValidationException::withMessages([
-                        'email' => ['The provided credentials are incorrect.'],
-                    ]);
-                }
-                return true;
-            }
-        ]);
+        // Validate credentials format
+        UserValidator::validateLoginCredentials($credentials);
+
+        // Attempt authentication
+        if (!Auth::attempt($credentials)) {
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
+        }
 
         $user = Auth::user();
+        
+        // Validate account status
+        UserValidator::validateAccountStatus($user);
+        
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return $this->successResponse([
@@ -136,16 +135,8 @@ class AuthService extends BaseService
         $this->logOperation('profile_update', ['user_id' => $user->id]);
 
         return $this->executeTransaction(function () use ($user, $userData) {
-            // Validate business rules
-            $this->validateBusinessRules([
-                'unique_email' => function() use ($userData, $user) {
-                    if (isset($userData['email']) && $userData['email'] !== $user->email) {
-                        return $this->userRepository->isEmailUnique($userData['email'], $user->id) 
-                            ? true : 'Email already exists';
-                    }
-                    return true;
-                }
-            ], $userData);
+            // Validate using dedicated validator
+            UserValidator::validateProfileUpdate($user, $userData);
 
             // Update allowed fields
             $allowedFields = ['name', 'email'];
@@ -179,13 +170,10 @@ class AuthService extends BaseService
         $this->logOperation('password_change', ['user_id' => $user->id]);
 
         return $this->executeTransaction(function () use ($user, $currentPassword, $newPassword) {
-            // Validate business rules
-            $this->validateBusinessRules([
-                'current_password_valid' => fn() => Hash::check($currentPassword, $user->password) 
-                    ? true : 'Current password is incorrect',
-                'password_different' => fn() => !Hash::check($newPassword, $user->password) 
-                    ? true : 'New password must be different from current password'
-            ]);
+            // Validate using dedicated validators
+            UserValidator::validateCurrentPassword($user, $currentPassword);
+            UserValidator::validatePasswordStrength($newPassword);
+            UserValidator::validatePasswordDifferent($user, $newPassword);
 
             $this->userRepository->updateProfile($user->id, [
                 'password' => Hash::make($newPassword)

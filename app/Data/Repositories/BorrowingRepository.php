@@ -609,4 +609,80 @@ class BorrowingRepository extends AbstractRepository implements BorrowingReposit
             ]
         ];
     }
+
+    /**
+     * Get count of active borrowings
+     *
+     * @return int
+     */
+    public function getActiveBorrowingsCount(): int
+    {
+        $result = $this->query->active()->count();
+        $this->resetQuery();
+        return $result;
+    }
+
+    /**
+     * Get count of overdue borrowings
+     *
+     * @return int
+     */
+    public function getOverdueCount(): int
+    {
+        $result = $this->query->overdue()->count();
+        $this->resetQuery();
+        return $result;
+    }
+
+    /**
+     * Get all overdue borrowings as collection
+     *
+     * @return Collection
+     */
+    public function getOverdueCollection(): Collection
+    {
+        $this->query->overdue()->orderBy('due_at');
+        $this->applyRelations();
+        
+        $result = $this->query->get();
+        $this->resetQuery();
+        
+        return $result;
+    }
+
+    /**
+     * Get user's active borrowings as collection
+     *
+     * @param int $userId
+     * @return Collection
+     */
+    public function getUserActiveBorrowings(int $userId): Collection
+    {
+        $this->query->where('user_id', $userId)
+                    ->active()
+                    ->with('book');
+        
+        $result = $this->query->get();
+        $this->resetQuery();
+        
+        return $result;
+    }
+
+    /**
+     * Get user's overdue borrowings as collection
+     *
+     * @param int $userId
+     * @return Collection
+     */
+    public function getUserOverdueBorrowings(int $userId): Collection
+    {
+        $this->query->where('user_id', $userId)
+                    ->overdue()
+                    ->with('book');
+        
+        $result = $this->query->get();
+        $this->resetQuery();
+        
+        return $result;
+    }
 }

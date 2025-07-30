@@ -91,7 +91,7 @@ class BorrowingValidator
         }
 
         // Check if borrowing is overdue and user is not librarian
-        if ($borrowing->due_at < Carbon::now() && !auth()->user()->isLibrarian()) {
+        if ($borrowing->due_at < Carbon::now() && auth()->check() && !auth()->user()->isLibrarian()) {
             throw new BusinessException('Only librarians can extend overdue borrowings');
         }
     }
@@ -175,7 +175,7 @@ class BorrowingValidator
             }
 
             // Only librarians can filter by user_id
-            if (!auth()->user()->isLibrarian()) {
+            if (auth()->check() && !auth()->user()->isLibrarian()) {
                 throw new BusinessException('Only librarians can filter by user ID');
             }
         }

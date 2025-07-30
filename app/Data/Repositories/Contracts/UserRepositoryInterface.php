@@ -40,6 +40,13 @@ interface UserRepositoryInterface extends RepositoryInterface
     public function getUsersWithOverdueBorrowings(): Collection;
 
     /**
+     * Get total count of members
+     *
+     * @return int
+     */
+    public function getMembersCount(): int;
+
+    /**
      * Get most active borrowers
      *
      * @param int $limit

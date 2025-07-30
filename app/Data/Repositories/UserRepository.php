@@ -509,4 +509,16 @@ class UserRepository extends AbstractRepository implements UserRepositoryInterfa
                 : 0
         ];
     }
+
+    /**
+     * Get total count of members
+     *
+     * @return int
+     */
+    public function getMembersCount(): int
+    {
+        $result = $this->query->where('role', 'member')->count();
+        $this->resetQuery();
+        return $result;
+    }
 }
